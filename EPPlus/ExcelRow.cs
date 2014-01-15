@@ -35,7 +35,17 @@ using System.Xml;
 using OfficeOpenXml.Style;
 namespace OfficeOpenXml
 {
-	/// <summary>
+	internal class RowInternal
+    {
+        internal double Height;
+        internal bool Hidden;
+        internal bool Collapsed;        
+        internal short OutlineLevel;
+        internal bool PageBreak;
+        internal bool Phonetic;
+        internal bool CustomHeight;
+    }
+    /// <summary>
 	/// Represents an individual row in the spreadsheet.
 	/// </summary>
 	public class ExcelRow : IRangeID
@@ -45,6 +55,7 @@ namespace OfficeOpenXml
         /// <summary>
         /// Internal RowID.
         /// </summary>
+        [Obsolete]
         public ulong RowID 
         {
             get
@@ -80,20 +91,20 @@ namespace OfficeOpenXml
         {
             get
             {
-                return _hidden;
-            }
-            set
-            {
-                if (_worksheet._package.DoAdjustDrawings)
+                var r=(RowInternal)_worksheet._values.GetValue(Row, 0);
+                if (r == null)
                 {
-                    var pos = _worksheet.Drawings.GetDrawingHeight();
-                    _hidden = value;
-                    _worksheet.Drawings.AdjustHeight(pos);
+                    return false;
                 }
                 else
                 {
-                    _hidden = value;
+                    return r.Hidden;
                 }
+            }
+            set
+            {
+                var r = GetRowInternal();
+                r.Hidden=value;
             }
         }        
 		#endregion
@@ -107,40 +118,60 @@ namespace OfficeOpenXml
         {
 			get
 			{
-                if (_height == -1)
+                var r = (RowInternal)_worksheet._values.GetValue(Row, 0);
+                if (r == null || r.Height<0)
                 {
                     return _worksheet.DefaultRowHeight;
                 }
                 else
                 {
-                    return _height;
+                    return r.Height;
                 }
-                //}
-			}
-			set	
+            }
+            set
             {
+                var r = GetRowInternal();
                 if (_worksheet._package.DoAdjustDrawings)
                 {
                     var pos = _worksheet.Drawings.GetDrawingWidths();
-                    _height = value;
+                    r.Height = value;
                     _worksheet.Drawings.AdjustHeight(pos);
                 }
                 else
                 {
-                    _height = value;
+                    r.Height = value;
                 }
-
-                if (Hidden && value != 0)
+                
+                if (r.Hidden && value != 0)
                 {
                     Hidden = false;
                 }
-                CustomHeight = (value != _worksheet.DefaultRowHeight);
+                r.CustomHeight = (value != _worksheet.DefaultRowHeight);
             }
         }
         /// <summary>
         /// Set to true if You don't want the row to Autosize
         /// </summary>
-        public bool CustomHeight { get; set; }
+        public bool CustomHeight 
+        {
+            get
+            {
+                var r = (RowInternal)_worksheet._values.GetValue(Row, 0);
+                if (r == null)
+                {
+                    return false;
+                }
+                else
+                {
+                    return r.CustomHeight;
+                }
+            }
+            set
+            {
+                var r = GetRowInternal();
+                r.CustomHeight = value;
+            }
+        }
 		#endregion
 
         internal string _styleName = "";
@@ -158,22 +189,22 @@ namespace OfficeOpenXml
                 _styleId = _worksheet.Workbook.Styles.GetStyleIdFromName(value);
                 _styleName = value;
             }
-        }        
+        }
         internal int _styleId = 0;
-		/// <summary>
-		/// Sets the style for the entire row using the style ID.  
-		/// </summary>
+        /// <summary>
+        /// Sets the style for the entire row using the style ID.  
+        /// </summary>
         public int StyleID
-		{
-			get
-			{
-				return _styleId; 
-			}
-			set	
-			{
-                _styleId = value;
-			}
-		}
+        {
+            get
+            {
+                return _worksheet._styles.GetValue(Row, 0);
+            }
+            set
+            {
+                _worksheet._styles.SetValue(Row, 0, value);
+            }
+        }
 
         /// <summary>
         /// Rownumber
@@ -188,24 +219,80 @@ namespace OfficeOpenXml
         /// </summary>
         public bool Collapsed
         {
-            get;
-            set;
+            get
+            {
+                var r=(RowInternal)_worksheet._values.GetValue(Row, 0);
+                if (r == null)
+                {
+                    return false;
+                }
+                else
+                {
+                    return r.Collapsed;
+                }
+            }
+            set
+            {
+                var r = GetRowInternal();
+                r.Collapsed = value;
+            }
         }
         /// <summary>
         /// Outline level.
         /// </summary>
         public int OutlineLevel
         {
-            get;
-            set;
+            get
+            {
+                var r=(RowInternal)_worksheet._values.GetValue(Row, 0);
+                if (r == null)
+                {
+                    return 0;
+                }
+                else
+                {
+                    return r.OutlineLevel;
+                }
+            }
+            set
+            {
+                var r = GetRowInternal();
+                r.OutlineLevel=(short)value;
+            }
+        }
+
+        private  RowInternal GetRowInternal()
+        {
+                        var r = (RowInternal)_worksheet._values.GetValue(Row, 0);
+                        if (r == null)
+                        {
+                            r = new RowInternal();
+                            _worksheet._values.SetValue(Row, 0, r);
+                        }
+        return r;
         }        
         /// <summary>
         /// Show phonetic Information
         /// </summary>
         public bool Phonetic 
         {
-            get;
-            set;
+            get
+            {
+                var r = (RowInternal)_worksheet._values.GetValue(Row, 0);
+                if (r == null)
+                {
+                    return false;
+                }
+                else
+                {
+                    return r.Phonetic;
+                }
+            }
+            set
+            {
+                var r = GetRowInternal();
+                r.Phonetic = value;
+            }
         }
         /// <summary>
         /// The Style applied to the whole row. Only effekt cells with no individual style set. 
@@ -223,8 +310,23 @@ namespace OfficeOpenXml
         /// </summary>
         public bool PageBreak
         {
-            get;
-            set;
+            get
+            {
+                var r = (RowInternal)_worksheet._values.GetValue(Row, 0);
+                if (r == null)
+                {
+                    return false;
+                }
+                else
+                {
+                    return r.PageBreak;
+                }
+            }
+            set
+            {
+                var r = GetRowInternal();
+                r.PageBreak = value;
+            }
         }
         internal static ulong GetRowID(int sheetID, int row)
         {
